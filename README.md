@@ -1,5 +1,5 @@
 <p align="center">
-<img src="sitemap.png" alt="Sitemap Logo" style="max-height: 300px">
+<img src="sitemap.png" alt="Sitemap Logo" style="height: 275px">
 </p>
 # Laravel Sitemap Generator
 
