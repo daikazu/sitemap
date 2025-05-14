@@ -2,6 +2,7 @@
 
 namespace Daikazu\Sitemap;
 
+use Daikazu\Sitemap\Commands\RegenerateSitemapCommand;
 use Daikazu\Sitemap\Commands\SitemapCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
@@ -20,6 +21,6 @@ class SitemapServiceProvider extends PackageServiceProvider
             ->hasConfigFile()
             ->hasViews()
             ->hasRoutes(['web', 'console'])
-            ->hasCommand(SitemapCommand::class);
+            ->hasCommands([SitemapCommand::class, RegenerateSitemapCommand::class]);
     }
 }
