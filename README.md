@@ -1,7 +1,9 @@
-<p align="center">
-<img src="sitemap.png" alt="Sitemap Logo" style="height: 275px">
-</p>
-
+<a href="https://mikewall.dev/">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="art/header-dark.png">
+  <img alt="Logo for daikazu/sitemap" src="art/header-light.png">
+</picture>
+</a>
 # Laravel Sitemap Generator
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/daikazu/sitemap.svg?style=flat-square)](https://packagist.org/packages/daikazu/sitemap)
