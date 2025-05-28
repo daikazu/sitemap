@@ -4,6 +4,7 @@
   <img alt="Logo for daikazu/sitemap" src="art/header-light.png">
 </picture>
 </a>
+
 # Laravel Sitemap Generator
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/daikazu/sitemap.svg?style=flat-square)](https://packagist.org/packages/daikazu/sitemap)
