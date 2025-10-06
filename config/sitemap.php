@@ -44,4 +44,28 @@ return [
         '/blog/category/', '/blog/tag/',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Sitemap Index Settings
+    |--------------------------------------------------------------------------
+    |
+    | Configure multi-sitemap support for large sites. When enabled, the
+    | sitemap will be split into multiple files with an index.
+    |
+    */
+
+    'index' => [
+        // Enable sitemap index (split into multiple sitemaps)
+        'enabled' => env('SITEMAP_INDEX_ENABLED', false),
+
+        // Maximum URLs per sitemap file (Google recommends max 50,000)
+        'max_urls_per_sitemap' => env('SITEMAP_MAX_URLS', 50000),
+
+        // Sitemap file naming pattern (will append numbers: sitemap-1.xml, sitemap-2.xml)
+        'filename_pattern' => env('SITEMAP_FILENAME_PATTERN', 'sitemap-%d.xml'),
+
+        // Index filename
+        'index_filename' => env('SITEMAP_INDEX_FILENAME', 'sitemap.xml'),
+    ],
+
 ];

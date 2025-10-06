@@ -40,6 +40,11 @@ class SitemapService
      */
     private function getFilename(): string
     {
+        // If index is enabled, use index filename, otherwise use regular filename
+        if (Config::get('sitemap.index.enabled', false)) {
+            return Config::get('sitemap.index.index_filename', 'sitemap.xml');
+        }
+
         return Config::get('sitemap.storage.filename', 'sitemap.xml');
     }
 

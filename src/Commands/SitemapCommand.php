@@ -2,6 +2,7 @@
 
 namespace Daikazu\Sitemap\Commands;
 
+use Daikazu\Sitemap\Services\SitemapIndexGenerator;
 use DateTime;
 use Exception;
 use GuzzleHttp\Exception\RequestException;
@@ -114,7 +115,11 @@ class SitemapCommand extends Command
         $this->output->progressStart();
 
         try {
-            // Create sitemap
+            // Check if sitemap index is enabled
+            $indexGenerator = app(SitemapIndexGenerator::class);
+            $useIndex = $indexGenerator->isEnabled();
+
+            // Create sitemap (will be used to collect URLs)
             $sitemap = Sitemap::create();
 
             // Create the crawler
@@ -342,10 +347,11 @@ class SitemapCommand extends Command
             // Start the crawl
             $crawler->startCrawling($baseUrl);
 
+            $this->output->progressFinish();
+
             // Get storage configuration
             $disk = config('sitemap.storage.disk', 'public');
             $path = config('sitemap.storage.path', 'sitemaps');
-            $filename = config('sitemap.storage.filename', 'sitemap.xml');
 
             // Create the storage directory if it doesn't exist
             $storagePath = storage_path('app/' . $disk . '/' . $path);
@@ -353,23 +359,44 @@ class SitemapCommand extends Command
                 mkdir($storagePath, 0755, true);
             }
 
-            // Save the sitemap to a temporary location first
-            $tempPath = sys_get_temp_dir() . '/' . $filename;
-            $sitemap->writeToFile($tempPath);
+            // Generate sitemap(s) based on configuration
+            if ($useIndex) {
+                $this->info("\nGenerating sitemap index...");
 
-            // Move to storage using Laravel's Storage facade
-            $fullPath = $path . '/' . $filename;
-            Storage::disk($disk)->put($fullPath, file_get_contents($tempPath));
+                // Add all URLs from sitemap to the index generator
+                foreach ($sitemap->getTags() as $tag) {
+                    $indexGenerator->addUrl($tag);
+                }
 
-            // Clean up temp file
-            if (file_exists($tempPath)) {
-                unlink($tempPath);
+                // Generate sitemaps and index
+                $files = $indexGenerator->generate();
+
+                $this->info('Sitemap generation complete!');
+                $this->info("Total URLs crawled: {$this->crawledCount}");
+                $this->info('Generated files:');
+                foreach ($files as $file) {
+                    $this->info("  - {$file}");
+                }
+            } else {
+                $filename = config('sitemap.storage.filename', 'sitemap.xml');
+
+                // Save the sitemap to a temporary location first
+                $tempPath = sys_get_temp_dir() . '/' . $filename;
+                $sitemap->writeToFile($tempPath);
+
+                // Move to storage using Laravel's Storage facade
+                $fullPath = $path . '/' . $filename;
+                Storage::disk($disk)->put($fullPath, file_get_contents($tempPath));
+
+                // Clean up temp file
+                if (file_exists($tempPath)) {
+                    unlink($tempPath);
+                }
+
+                $this->info("\nSitemap generation complete!");
+                $this->info("Total URLs crawled: {$this->crawledCount}");
+                $this->info("Sitemap saved to: {$disk}/{$fullPath}");
             }
-
-            $this->output->progressFinish();
-            $this->info("\nSitemap generation complete!");
-            $this->info("Total URLs crawled: {$this->crawledCount}");
-            $this->info("Sitemap saved to: {$disk}/{$fullPath}");
 
             return 0;
 
