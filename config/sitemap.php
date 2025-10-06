@@ -14,6 +14,18 @@ return [
     // The cooldown period in hours between sitemap generations
     'cooldown_hours' => env('SITEMAP_COOLDOWN_HOURS', 24),
 
+    // Storage settings
+    'storage' => [
+        // The disk where sitemaps will be stored
+        'disk' => env('SITEMAP_STORAGE_DISK', 'public'),
+
+        // The path within the disk where sitemaps will be stored
+        'path' => env('SITEMAP_STORAGE_PATH', 'sitemaps'),
+
+        // The filename for the sitemap
+        'filename' => env('SITEMAP_FILENAME', 'sitemap.xml'),
+    ],
+
     // Schedule settings for automatic sitemap generation
     'schedule' => [
         // Enable or disable scheduled generation

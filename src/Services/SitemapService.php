@@ -5,7 +5,7 @@ namespace Daikazu\Sitemap\Services;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 
 class SitemapService
 {
@@ -20,13 +20,35 @@ class SitemapService
     private const string SITEMAP_CONTENT_KEY = 'sitemap_content';
 
     /**
-     * The path to the sitemap file.
+     * Get the storage disk for sitemaps.
      */
-    private readonly string $sitemapPath;
-
-    public function __construct()
+    private function getDisk(): string
     {
-        $this->sitemapPath = public_path('sitemap.xml');
+        return Config::get('sitemap.storage.disk', 'public');
+    }
+
+    /**
+     * Get the storage path for sitemaps.
+     */
+    private function getStoragePath(): string
+    {
+        return Config::get('sitemap.storage.path', 'sitemaps');
+    }
+
+    /**
+     * Get the sitemap filename.
+     */
+    private function getFilename(): string
+    {
+        return Config::get('sitemap.storage.filename', 'sitemap.xml');
+    }
+
+    /**
+     * Get the full path to the sitemap file within the storage disk.
+     */
+    private function getFullPath(): string
+    {
+        return $this->getStoragePath() . '/' . $this->getFilename();
     }
 
     /**
@@ -71,11 +93,20 @@ class SitemapService
             return Cache::get(self::SITEMAP_CONTENT_KEY);
         }
 
-        // If not in cache, generate it
+        // If not in cache, check if file exists in storage
+        $disk = Storage::disk($this->getDisk());
+        if ($disk->exists($this->getFullPath())) {
+            $content = $disk->get($this->getFullPath());
+            // Cache it for next time
+            Cache::put(self::SITEMAP_CONTENT_KEY, $content, now()->addHours($this->getCooldownHours()));
+            return $content;
+        }
+
+        // If not in cache or storage, generate it
         $this->generateSitemap();
 
         // Return the content from the file
-        return File::get($this->sitemapPath);
+        return $disk->get($this->getFullPath());
     }
 
     /**
@@ -94,7 +125,7 @@ class SitemapService
         if (app()->environment('local')) {
             return true;
         }
-        return Cache::has(self::CACHE_KEY) && File::exists($this->sitemapPath);
+        return Cache::has(self::CACHE_KEY) && Storage::disk($this->getDisk())->exists($this->getFullPath());
     }
 
     /**
@@ -105,8 +136,9 @@ class SitemapService
         Artisan::call('app:generate-sitemap');
 
         // Store the sitemap content in cache
-        if (File::exists($this->sitemapPath)) {
-            $content = File::get($this->sitemapPath);
+        $disk = Storage::disk($this->getDisk());
+        if ($disk->exists($this->getFullPath())) {
+            $content = $disk->get($this->getFullPath());
             Cache::put(self::SITEMAP_CONTENT_KEY, $content, now()->addHours($this->getCooldownHours()));
         }
     }

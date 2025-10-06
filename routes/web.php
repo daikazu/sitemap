@@ -1,10 +1,9 @@
 <?php
 
-use Daikazu\Sitemap\Services\SitemapService;
+use Daikazu\Sitemap\Controllers\SitemapController;
 use Illuminate\Support\Facades\Route;
 
 /**
- * Sitemap route that serves the sitemap from cache.
+ * Sitemap route that serves the sitemap from storage.
  */
-Route::get('sitemap.xml', fn (SitemapService $sitemapService) => response($sitemapService->getSitemapContent())
-    ->header('Content-Type', 'application/xml'));
+Route::get('sitemap.xml', [SitemapController::class, 'show']);

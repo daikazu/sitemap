@@ -6,6 +6,7 @@ use DateTime;
 use Exception;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Storage;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\UriInterface;
 use Spatie\Crawler\Crawler;
@@ -341,14 +342,34 @@ class SitemapCommand extends Command
             // Start the crawl
             $crawler->startCrawling($baseUrl);
 
-            // Save the sitemap
-            $sitemapPath = public_path($output);
-            $sitemap->writeToFile($sitemapPath);
+            // Get storage configuration
+            $disk = config('sitemap.storage.disk', 'public');
+            $path = config('sitemap.storage.path', 'sitemaps');
+            $filename = config('sitemap.storage.filename', 'sitemap.xml');
+
+            // Create the storage directory if it doesn't exist
+            $storagePath = storage_path('app/' . $disk . '/' . $path);
+            if (! file_exists($storagePath)) {
+                mkdir($storagePath, 0755, true);
+            }
+
+            // Save the sitemap to a temporary location first
+            $tempPath = sys_get_temp_dir() . '/' . $filename;
+            $sitemap->writeToFile($tempPath);
+
+            // Move to storage using Laravel's Storage facade
+            $fullPath = $path . '/' . $filename;
+            Storage::disk($disk)->put($fullPath, file_get_contents($tempPath));
+
+            // Clean up temp file
+            if (file_exists($tempPath)) {
+                unlink($tempPath);
+            }
 
             $this->output->progressFinish();
             $this->info("\nSitemap generation complete!");
             $this->info("Total URLs crawled: {$this->crawledCount}");
-            $this->info("Sitemap saved to: {$output}");
+            $this->info("Sitemap saved to: {$disk}/{$fullPath}");
 
             return 0;
 
