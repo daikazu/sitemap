@@ -40,7 +40,7 @@ return [
         '/login', '/logout', '/register', '/admin', '/cart', '/checkout',
         'wp-admin', 'wp-login', 'wp-content',
         '/feed/', '/search',
-        '.jpg', '.jpeg', '.png', '.gif', '.css', '.js', '.pdf', '.zip',
+        '.jpg', '.jpeg', '.png', '.gif', '.webp', '.css', '.js', '.pdf', '.zip',
         '/blog/category/', '/blog/tag/',
     ],
 
@@ -67,5 +67,35 @@ return [
         // Index filename
         'index_filename' => env('SITEMAP_INDEX_FILENAME', 'sitemap.xml'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Model-Based Sitemap Generation
+    |--------------------------------------------------------------------------
+    |
+    | Configure Eloquent models to be included in the sitemap. This is more
+    | efficient than crawling and can include dynamic/authenticated content.
+    | Works in hybrid mode with crawling or standalone.
+    |
+    */
+
+    'models' => [
+        // Example configuration:
+        // \App\Models\Post::class => [
+        //     'enabled' => true,
+        //     'url' => fn($post) => route('posts.show', $post->slug),
+        //     'lastmod' => 'updated_at', // column name or closure: fn($post) => $post->updated_at
+        //     'changefreq' => 'weekly', // always, hourly, daily, weekly, monthly, yearly, never
+        //     'priority' => 0.8, // 0.0 to 1.0 or closure: fn($post) => $post->is_featured ? 0.9 : 0.7
+        //     'query' => fn($query) => $query->where('published', true)->orderBy('updated_at', 'desc'),
+        //     'chunk_size' => 1000, // Optional: Process models in chunks (default: 1000)
+        // ],
+    ],
+
+    // Generate mode: 'crawl', 'models', or 'hybrid'
+    // - 'crawl': Only crawl the website (default behavior)
+    // - 'models': Only generate from configured models
+    // - 'hybrid': Combine both crawled URLs and model-based URLs
+    'generate_mode' => env('SITEMAP_GENERATE_MODE', 'crawl'),
 
 ];

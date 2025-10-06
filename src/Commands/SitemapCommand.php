@@ -2,6 +2,7 @@
 
 namespace Daikazu\Sitemap\Commands;
 
+use Daikazu\Sitemap\Services\ModelSitemapGenerator;
 use Daikazu\Sitemap\Services\SitemapIndexGenerator;
 use DateTime;
 use Exception;
@@ -67,6 +68,11 @@ class SitemapCommand extends Command
     protected array $excludedDirectories = [];
 
     /**
+     * URLs already added from models (to prevent duplicates in hybrid mode)
+     */
+    protected array $modelUrls = [];
+
+    /**
      * Execute the console command.
      */
     public function handle(): int
@@ -115,12 +121,38 @@ class SitemapCommand extends Command
         $this->output->progressStart();
 
         try {
+            // Check generation mode
+            $generateMode = config('sitemap.generate_mode', 'crawl');
+            $modelGenerator = app(ModelSitemapGenerator::class);
+
             // Check if sitemap index is enabled
             $indexGenerator = app(SitemapIndexGenerator::class);
             $useIndex = $indexGenerator->isEnabled();
 
             // Create sitemap (will be used to collect URLs)
             $sitemap = Sitemap::create();
+
+            // Generate URLs from models if enabled (models or hybrid mode)
+            if (in_array($generateMode, ['models', 'hybrid'])) {
+                $this->info('Generating URLs from models...');
+                $modelUrls = $modelGenerator->generate();
+                $this->info('Generated ' . count($modelUrls) . ' URLs from models');
+
+                foreach ($modelUrls as $url) {
+                    $sitemap->add($url);
+                    // Track model URLs to prevent duplicates during crawling
+                    $this->modelUrls[] = $this->normalizeUrl($url->url);
+                }
+            }
+
+            // Skip crawling if mode is 'models' only
+            if ($generateMode === 'models') {
+                $this->info('Skipping crawl (models-only mode)');
+                $this->info('Processing ' . count($modelUrls) . ' model-based URLs...');
+
+                // Skip to the saving part
+                goto save_sitemap;
+            }
 
             // Create the crawler
             $crawler = Crawler::create([
@@ -148,6 +180,12 @@ class SitemapCommand extends Command
                         }
 
                         $urlString = (string) $url;
+
+                        // Check if this URL was already added from models (hybrid mode deduplication)
+                        if ($this->command->isModelUrl($urlString)) {
+                            return;
+                        }
+
                         $this->command->incrementCrawledCount();
                         $this->command->progressAdvance();
 
@@ -349,6 +387,8 @@ class SitemapCommand extends Command
 
             $this->output->progressFinish();
 
+            save_sitemap:
+
             // Get storage configuration
             $disk = config('sitemap.storage.disk', 'public');
             $path = config('sitemap.storage.path', 'sitemaps');
@@ -372,7 +412,15 @@ class SitemapCommand extends Command
                 $files = $indexGenerator->generate();
 
                 $this->info('Sitemap generation complete!');
-                $this->info("Total URLs crawled: {$this->crawledCount}");
+
+                if ($generateMode === 'models') {
+                    $this->info('Total URLs from models: ' . count($modelUrls));
+                } elseif ($generateMode === 'hybrid') {
+                    $this->info("Total URLs: {$this->crawledCount} (crawled) + " . count($modelUrls) . ' (models) = ' . ($this->crawledCount + count($modelUrls)));
+                } else {
+                    $this->info("Total URLs crawled: {$this->crawledCount}");
+                }
+
                 $this->info('Generated files:');
                 foreach ($files as $file) {
                     $this->info("  - {$file}");
@@ -394,7 +442,16 @@ class SitemapCommand extends Command
                 }
 
                 $this->info("\nSitemap generation complete!");
-                $this->info("Total URLs crawled: {$this->crawledCount}");
+
+                if ($generateMode === 'models') {
+                    $this->info('Total URLs from models: ' . count($modelUrls));
+                } elseif ($generateMode === 'hybrid') {
+                    $totalUrls = $this->crawledCount + (isset($modelUrls) ? count($modelUrls) : 0);
+                    $this->info("Total URLs: {$this->crawledCount} (crawled) + " . count($modelUrls) . " (models) = {$totalUrls}");
+                } else {
+                    $this->info("Total URLs crawled: {$this->crawledCount}");
+                }
+
                 $this->info("Sitemap saved to: {$disk}/{$fullPath}");
             }
 
@@ -446,6 +503,51 @@ class SitemapCommand extends Command
     public function getSpecialPagePriority(string $url): ?float
     {
         $urlNormalized = rtrim($url, '/');
+
         return $this->specialPages[$urlNormalized] ?? null;
+    }
+
+    /**
+     * Check if URL was already added from models
+     */
+    public function isModelUrl(string $url): bool
+    {
+        $normalized = $this->normalizeUrl($url);
+
+        return in_array($normalized, $this->modelUrls);
+    }
+
+    /**
+     * Normalize URL for comparison (remove trailing slashes, etc.)
+     */
+    protected function normalizeUrl(string $url): string
+    {
+        // Parse URL
+        $parsed = parse_url($url);
+
+        // Remove tracking parameters
+        $paramsToRemove = [
+            'utm_source', 'utm_medium', 'utm_campaign',
+            'utm_term', 'utm_content', 'gclid', 'fbclid',
+            'sessionid', 'PHPSESSID', '_ga', 'ref',
+        ];
+
+        $params = [];
+        if (isset($parsed['query'])) {
+            parse_str($parsed['query'], $params);
+
+            foreach ($paramsToRemove as $param) {
+                unset($params[$param]);
+            }
+        }
+
+        // Rebuild URL
+        $scheme = isset($parsed['scheme']) ? $parsed['scheme'] . '://' : '';
+        $host = $parsed['host'] ?? '';
+        $port = isset($parsed['port']) ? ':' . $parsed['port'] : '';
+        $path = isset($parsed['path']) ? rtrim($parsed['path'], '/') : '';
+        $query = ! empty($params) ? '?' . http_build_query($params) : '';
+
+        return strtolower($scheme . $host . $port . $path . $query);
     }
 }

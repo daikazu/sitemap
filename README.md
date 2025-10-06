@@ -18,6 +18,8 @@ A Laravel package for generating and managing XML sitemaps with caching and cool
 
 - Automatic sitemap generation with configurable cooldown periods
 - **Sitemap Index Support** - Split large sitemaps into multiple files (50,000 URLs per file)
+- **Model-Based Generation** - Generate sitemaps from Eloquent models (faster, includes authenticated content)
+- **Hybrid Mode** - Combine crawled URLs with model-based URLs
 - Caching of sitemap content for improved performance
 - Environment-aware generation (skips generation in local environment)
 - Force regeneration capability when needed
@@ -110,6 +112,54 @@ When enabled, the package will:
 - Automatically serve the correct sitemap based on the requested URL
 
 The main sitemap index will be available at `/sitemap.xml`, and individual sitemaps at `/sitemaps/sitemap-1.xml`, `/sitemaps/sitemap-2.xml`, etc.
+
+### Model-Based Sitemap Generation
+
+Generate sitemaps directly from your Eloquent models - much faster than crawling and includes dynamic/authenticated content:
+
+```php
+// In config/sitemap.php
+'models' => [
+    \App\Models\Post::class => [
+        'enabled' => true,
+        'url' => fn($post) => route('posts.show', $post->slug),
+        'lastmod' => 'updated_at', // column name or closure
+        'changefreq' => 'weekly',
+        'priority' => 0.8, // or use closure: fn($post) => $post->is_featured ? 0.9 : 0.7
+        'query' => fn($query) => $query->where('published', true),
+    ],
+    \App\Models\Product::class => [
+        'enabled' => true,
+        'url' => fn($product) => route('products.show', $product),
+        'lastmod' => fn($product) => $product->updated_at,
+        'priority' => fn($product) => $product->in_stock ? 0.8 : 0.5,
+    ],
+],
+
+// Set generation mode
+'generate_mode' => 'hybrid', // Options: 'crawl', 'models', or 'hybrid'
+```
+
+**Generation Modes:**
+- `crawl` - Traditional website crawling (default)
+- `models` - Only generate from configured models
+- `hybrid` - Combine both crawled pages and model-based URLs (with automatic deduplication)
+
+**Commands:**
+```bash
+# Generate sitemap with configured mode (crawl/models/hybrid)
+php artisan app:generate-sitemap
+
+# Generate sitemap from models only (ignores generate_mode)
+php artisan app:generate-model-sitemap
+```
+
+**Hybrid Mode Deduplication:**
+When using hybrid mode, the package intelligently prevents duplicate URLs by:
+- Tracking all model-generated URLs
+- Normalizing URLs (removes trailing slashes, tracking parameters, case differences)
+- Skipping crawled URLs that were already added from models
+- Result: Clean sitemap with no duplicates, combining the best of both approaches!
 
 ## Testing
 
