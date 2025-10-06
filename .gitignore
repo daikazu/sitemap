@@ -14,6 +14,15 @@ yarn-error.log
 .phpunit.result.cache
 /build
 
+## AI Tooling
+/.claude
+CLAUDE.md
+.mcp.json
+.junie
+AGENTS.md
+GEMINI.md
+/.cursorrules
+
 # IDE Helper
 _ide_helper.php
 _ide_helper_models.php
