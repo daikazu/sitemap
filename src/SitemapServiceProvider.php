@@ -2,6 +2,7 @@
 
 namespace Daikazu\Sitemap;
 
+use Daikazu\Sitemap\Commands\ClearSitemapCommand;
 use Daikazu\Sitemap\Commands\GenerateModelSitemapCommand;
 use Daikazu\Sitemap\Commands\RegenerateSitemapCommand;
 use Daikazu\Sitemap\Commands\SitemapCommand;
@@ -26,6 +27,7 @@ class SitemapServiceProvider extends PackageServiceProvider
                 SitemapCommand::class,
                 RegenerateSitemapCommand::class,
                 GenerateModelSitemapCommand::class,
+                ClearSitemapCommand::class,
             ]);
     }
 }
