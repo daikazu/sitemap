@@ -98,4 +98,30 @@ return [
     // - 'hybrid': Combine both crawled URLs and model-based URLs
     'generate_mode' => env('SITEMAP_GENERATE_MODE', 'crawl'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Pagination Crawling Settings
+    |--------------------------------------------------------------------------
+    |
+    | Configure how the crawler handles paginated content. Set to 0 or false
+    | to disable the limit and allow unlimited pagination (crawler will stop
+    | when it runs out of links naturally).
+    |
+    */
+
+    // Maximum pagination depth (e.g., ?page=100). Set to 0 or false for unlimited.
+    'max_pagination_depth' => env('SITEMAP_MAX_PAGINATION_DEPTH', 100),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Performance Settings
+    |--------------------------------------------------------------------------
+    |
+    | These settings are automatically applied when running sitemap generation.
+    | The command uses set_time_limit(0) for unlimited execution time and
+    | sets memory_limit to 512M. Guzzle timeouts are configured separately
+    | in the consuming application's config/sitemap.php file.
+    |
+    */
+
 ];

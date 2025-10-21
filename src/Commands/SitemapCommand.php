@@ -26,7 +26,7 @@ class SitemapCommand extends Command
      */
     protected $signature = 'app:generate-sitemap
                             {baseUrl? : The base URL of your site}
-                            {--depth=10 : Maximum crawl depth}
+                            {--depth=30 : Maximum crawl depth}
                             {--concurrency=5 : Number of concurrent requests}
                             {--output=sitemap.xml : Sitemap filename}
                             {--exclude= : Comma-separated list of directories to exclude}';
@@ -77,6 +77,12 @@ class SitemapCommand extends Command
      */
     public function handle(): int
     {
+        // Allow unlimited execution time for large sites
+        set_time_limit(0);
+
+        // Increase memory limit if needed
+        ini_set('memory_limit', '512M');
+
         // Get the base URL from the command argument or use the APP_URL from .env
         $baseUrl = $this->argument('baseUrl') ?? config('app.url');
 
@@ -327,11 +333,13 @@ class SitemapCommand extends Command
                                 }
                             }
 
-                            // Allow pagination parameters but limit to a reasonable number
+                            // Allow pagination parameters with configurable limit
                             if (isset($queryParams['page']) && is_numeric($queryParams['page'])) {
                                 $pageNum = (int) $queryParams['page'];
-                                // Limit pagination to a reasonable number (e.g., 20 pages)
-                                if ($pageNum > 20) {
+                                $maxDepth = config('sitemap.max_pagination_depth', 100);
+
+                                // Only enforce limit if max_pagination_depth is set and > 0
+                                if ($maxDepth && $pageNum > $maxDepth) {
                                     return false;
                                 }
                             }
