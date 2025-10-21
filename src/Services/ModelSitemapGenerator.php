@@ -154,12 +154,13 @@ class ModelSitemapGenerator
         if (is_string($lastmod) && isset($model->{$lastmod})) {
             $value = $model->{$lastmod};
 
-            if ($value instanceof DateTime) {
-                return $value;
-            }
-
+            // Check Carbon first since it extends DateTime
             if ($value instanceof \Illuminate\Support\Carbon) {
                 return DateTime::createFromFormat('Y-m-d H:i:s', $value->format('Y-m-d H:i:s'));
+            }
+
+            if ($value instanceof DateTime) {
+                return $value;
             }
 
             return new DateTime($value);

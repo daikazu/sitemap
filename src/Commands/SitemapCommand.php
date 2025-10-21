@@ -138,6 +138,9 @@ class SitemapCommand extends Command
             // Create sitemap (will be used to collect URLs)
             $sitemap = Sitemap::create();
 
+            // Initialize model URLs array
+            $modelUrls = [];
+
             // Generate URLs from models if enabled (models or hybrid mode)
             if (in_array($generateMode, ['models', 'hybrid'])) {
                 $this->info('Generating URLs from models...');
@@ -235,9 +238,7 @@ class SitemapCommand extends Command
 
                         // Set last modification date
                         $lastModified = $this->getLastModifiedDate($response);
-                        if ($lastModified !== null) {
-                            $sitemapUrl->setLastModificationDate($lastModified);
-                        }
+                        $sitemapUrl->setLastModificationDate($lastModified);
 
                         // Add URL to sitemap
                         $this->sitemap->add($sitemapUrl);
@@ -262,7 +263,7 @@ class SitemapCommand extends Command
                         return null;
                     }
 
-                    private function getLastModifiedDate(ResponseInterface $response): ?DateTime
+                    private function getLastModifiedDate(ResponseInterface $response): DateTime
                     {
                         // Try to get last modified from headers
                         $lastModified = $response->getHeader('Last-Modified');
@@ -454,7 +455,7 @@ class SitemapCommand extends Command
                 if ($generateMode === 'models') {
                     $this->info('Total URLs from models: ' . count($modelUrls));
                 } elseif ($generateMode === 'hybrid') {
-                    $totalUrls = $this->crawledCount + (isset($modelUrls) ? count($modelUrls) : 0);
+                    $totalUrls = $this->crawledCount + count($modelUrls);
                     $this->info("Total URLs: {$this->crawledCount} (crawled) + " . count($modelUrls) . " (models) = {$totalUrls}");
                 } else {
                     $this->info("Total URLs crawled: {$this->crawledCount}");
