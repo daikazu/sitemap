@@ -142,15 +142,15 @@ class SitemapIndexGenerator
             $xml .= '  <url>' . PHP_EOL;
             $xml .= '    <loc>' . htmlspecialchars($url->url) . '</loc>' . PHP_EOL;
 
-            if ($url->lastModificationDate) {
+            if (isset($url->lastModificationDate)) {
                 $xml .= '    <lastmod>' . $url->lastModificationDate->format('Y-m-d\TH:i:sP') . '</lastmod>' . PHP_EOL;
             }
 
-            if ($url->changeFrequency) {
+            if (isset($url->changeFrequency)) {
                 $xml .= '    <changefreq>' . $url->changeFrequency . '</changefreq>' . PHP_EOL;
             }
 
-            if ($url->priority !== null) {
+            if (isset($url->priority)) {
                 $xml .= '    <priority>' . number_format($url->priority, 1) . '</priority>' . PHP_EOL;
             }
 
