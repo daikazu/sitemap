@@ -8,6 +8,7 @@ use DateTime;
 use Exception;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\UriInterface;
@@ -71,6 +72,11 @@ class SitemapCommand extends Command
      * URLs already added from models (to prevent duplicates in hybrid mode)
      */
     protected array $modelUrls = [];
+
+    /**
+     * URLs that failed during crawling (for reporting)
+     */
+    protected array $failedUrls = [];
 
     /**
      * Execute the console command.
@@ -183,8 +189,12 @@ class SitemapCommand extends Command
 
                     public function crawled(UriInterface $url, ResponseInterface $response, ?UriInterface $foundOnUrl = null, ?string $linkText = null): void
                     {
-                        // Skip non-200 responses
-                        if ($response->getStatusCode() !== 200) {
+                        $statusCode = $response->getStatusCode();
+
+                        // Log and skip non-200 responses
+                        if ($statusCode !== 200) {
+                            $this->command->addFailedUrl((string) $url, $statusCode, null, $foundOnUrl ? (string) $foundOnUrl : null);
+
                             return;
                         }
 
@@ -249,7 +259,16 @@ class SitemapCommand extends Command
 
                     public function crawlFailed(UriInterface $url, RequestException $requestException, ?UriInterface $foundOnUrl = null, ?string $linkText = null): void
                     {
-                        // Skip failed URLs
+                        $statusCode = $requestException->hasResponse()
+                            ? $requestException->getResponse()->getStatusCode()
+                            : null;
+
+                        $this->command->addFailedUrl(
+                            (string) $url,
+                            $statusCode,
+                            $requestException->getMessage(),
+                            $foundOnUrl ? (string) $foundOnUrl : null
+                        );
                     }
 
                     private function extractCanonicalUrl(string $html): ?string
@@ -464,6 +483,9 @@ class SitemapCommand extends Command
                 $this->info("Sitemap saved to: {$disk}/{$fullPath}");
             }
 
+            // Show summary of failed URLs if any
+            $this->outputFailedUrlsSummary();
+
             return 0;
 
         } catch (Exception $e) {
@@ -524,6 +546,81 @@ class SitemapCommand extends Command
         $normalized = $this->normalizeUrl($url);
 
         return in_array($normalized, $this->modelUrls);
+    }
+
+    /**
+     * Add a failed URL to the tracking list and log it
+     */
+    public function addFailedUrl(string $url, ?int $statusCode, ?string $errorMessage = null, ?string $foundOnUrl = null): void
+    {
+        $this->failedUrls[] = [
+            'url'         => $url,
+            'status_code' => $statusCode,
+            'error'       => $errorMessage,
+            'found_on'    => $foundOnUrl,
+        ];
+
+        $context = [
+            'url'         => $url,
+            'status_code' => $statusCode,
+            'found_on'    => $foundOnUrl,
+        ];
+
+        if ($errorMessage) {
+            $context['error'] = $errorMessage;
+        }
+
+        Log::warning('Sitemap crawler encountered an error while crawling URL', $context);
+    }
+
+    /**
+     * Get failed URLs
+     */
+    public function getFailedUrls(): array
+    {
+        return $this->failedUrls;
+    }
+
+    /**
+     * Output a summary of failed URLs
+     */
+    protected function outputFailedUrlsSummary(): void
+    {
+        if (empty($this->failedUrls)) {
+            return;
+        }
+
+        $this->newLine();
+        $this->warn('⚠ Encountered ' . count($this->failedUrls) . ' URL(s) with errors during crawl:');
+
+        // Group by status code
+        $groupedByStatus = [];
+        foreach ($this->failedUrls as $failed) {
+            $status = $failed['status_code'] ?? 'Unknown';
+            $groupedByStatus[$status][] = $failed;
+        }
+
+        foreach ($groupedByStatus as $status => $urls) {
+            $this->warn("  [{$status}] " . count($urls) . ' URL(s)');
+
+            // Show first 5 URLs for each status code
+            $shown = 0;
+            foreach ($urls as $urlData) {
+                if ($shown >= 5) {
+                    $remaining = count($urls) - 5;
+                    $this->line("        ... and {$remaining} more");
+                    break;
+                }
+                $this->line('        - ' . $urlData['url']);
+                if ($urlData['found_on']) {
+                    $this->line('          (found on: ' . $urlData['found_on'] . ')');
+                }
+                $shown++;
+            }
+        }
+
+        $this->newLine();
+        $this->info('Failed URLs have been logged. Check your Laravel log for details.');
     }
 
     /**
